@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GRT Ticket">
+<meta name="theme-color" content="#1a73e8">
+<title>GRT Transit</title>
+<style>
+:root{--safe-top:env(safe-area-inset-top,44px);--safe-bottom:env(safe-area-inset-bottom,34px);}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;width:100%;overflow:hidden;background:#f2f2f7;font-family:-apple-system,'SF Pro Display','Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased;}
+.screen{display:none;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:#f2f2f7;padding-top:var(--safe-top);padding-bottom:calc(var(--safe-bottom) + 16px);}
+.screen.active{display:block;}
+
+/* HOME */
+#home{display:flex;flex-direction:column;align-items:center;}
+.home-header{width:100%;padding:28px 20px 0;text-align:center;}
+.home-logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(145deg,#1a73e8,#0d47a1);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(26,115,232,0.35);}
+.home-title{font-size:28px;font-weight:700;color:#1a1a2e;letter-spacing:-0.5px;}
+.home-sub{font-size:14px;color:#8e8e93;margin-top:4px;}
+.activate-btn{margin-top:40px;background:#1a73e8;color:#fff;border:none;border-radius:14px;padding:17px 56px;font-size:19px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(26,115,232,0.38);transition:transform 0.12s;}
+.activate-btn:active{transform:scale(0.96);}
+.ticket-preview-wrap{width:100%;padding:24px 16px 0;}
+.preview-label{font-size:13px;color:#8e8e93;margin-bottom:8px;padding:0 4px;}
+.ticket-preview-card{background:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 6px rgba(0,0,0,0.08);cursor:pointer;}
+.ticket-preview-card:active{opacity:0.7;}
+.preview-icon{width:46px;height:46px;background:#1a73e8;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.preview-text{flex:1;}
+.preview-name{font-size:15px;font-weight:600;color:#1a1a2e;}
+.preview-expiry{font-size:13px;color:#8e8e93;margin-top:2px;}
+.preview-chevron{color:#c7c7cc;font-size:20px;}
+
+/* TICKET */
+.ticket-top-bar{display:flex;justify-content:flex-end;padding:12px 16px 8px;}
+.close-pill{background:#e5e5ea;color:#1a1a2e;border:none;border-radius:20px;padding:7px 16px;font-size:15px;font-weight:500;cursor:pointer;}
+.ticket-body{padding:0 16px 16px;}
+.ticket-header-bar{background:#1a73e8;border-radius:14px 14px 0 0;padding:13px;text-align:center;}
+.ticket-header-bar span{color:#fff;font-size:17px;font-weight:700;}
+.ticket-card{background:#fff;border-radius:0 0 16px 16px;padding:18px 18px 14px;overflow:hidden;}
+
+/* Aztec code canvas — no border, fills naturally */
+.aztec-wrap{text-align:center;margin-bottom:14px;}
+#aztecCanvas{display:block;margin:0 auto;image-rendering:pixelated;image-rendering:crisp-edges;}
+
+/* COLOR BAR */
+.color-bar{height:36px;position:relative;overflow:hidden;display:flex;}
+.cb-amber{flex:1;background:#5c4300;}
+.cb-green{flex:1;background:#1e4020;}
+.cb-red{flex:1;background:#5a1010;}
+.cb-time{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:14px;font-weight:700;letter-spacing:1px;text-shadow:0 1px 5px rgba(0,0,0,0.95);white-space:nowrap;will-change:left;pointer-events:none;}
+
+/* GRT BRAND PANEL */
+.grt-brand-panel{position:relative;background:#29abe2;overflow:hidden;min-height:112px;}
+.grt-ring{position:absolute;border-radius:50%;border-style:solid;pointer-events:none;}
+.r1{width:120px;height:120px;border-width:15px;border-color:rgba(255,255,255,0.20);top:-36px;left:-36px;}
+.r2{width:68px;height:68px;border-width:13px;border-color:#1a4a8a;top:-10px;left:-10px;}
+.r3{width:96px;height:96px;border-width:13px;border-color:transparent transparent #d4880a #d4880a;bottom:-26px;left:-26px;transform:rotate(-15deg);}
+.r4{width:58px;height:58px;border-width:11px;border-color:transparent transparent transparent #4caf50;bottom:4px;left:30px;transform:rotate(35deg);}
+.r5{width:72px;height:72px;border-width:10px;border-color:rgba(255,255,255,0.15);top:50%;right:52px;transform:translateY(-50%);}
+.grt-pill{position:absolute;top:50%;left:46px;transform:translateY(-50%);background:#3db54a;border-radius:10px;padding:10px 16px 10px 12px;display:flex;align-items:center;gap:9px;z-index:2;}
+.grt-pill-icon{flex-shrink:0;width:38px;height:30px;display:flex;align-items:center;justify-content:center;}
+.grt-pill-text{font-size:20px;font-weight:800;font-style:italic;color:#fff;line-height:1.15;letter-spacing:-0.2px;}
+.grt-wm{position:absolute;bottom:8px;right:10px;color:rgba(255,255,255,0.32);font-size:26px;font-weight:900;letter-spacing:3px;font-style:italic;z-index:1;}
+.grt-act-bar{background:#2e7d32;padding:9px 14px;text-align:center;}
+.grt-act-bar span{color:#fff;font-size:14px;font-weight:600;}
+
+.ticket-card-bottom{display:flex;justify-content:flex-end;padding-top:12px;margin-top:4px;border-top:1px dashed #d1d1d6;}
+.details-btn{background:none;border:none;color:#007aff;font-size:15px;font-weight:400;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:-apple-system,'SF Pro Display',sans-serif;padding:0;}
+
+/* DETAILS */
+.details-top-bar{display:flex;justify-content:flex-end;padding:12px 16px 8px;}
+.details-card{background:#fff;border-radius:16px;margin:0 16px;overflow:hidden;}
+.detail-row{padding:12px 16px;border-bottom:0.5px solid #e5e5ea;}
+.detail-row:last-child{border-bottom:none;}
+.dl{font-size:11px;color:#8e8e93;font-weight:500;letter-spacing:0.3px;text-transform:uppercase;margin-bottom:3px;}
+.dv{font-size:16px;color:#1a1a2e;}
+.valid-badge{display:inline-block;background:#1a73e8;color:#fff;font-size:12px;font-weight:600;border-radius:6px;padding:3px 10px;margin-top:4px;}
+.trip-row{display:flex;justify-content:space-between;align-items:center;}
+.details-bottom{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;margin:0 16px;}
+.back-btn{background:none;border:none;color:#007aff;font-size:15px;cursor:pointer;padding:0;font-family:-apple-system,'SF Pro Display',sans-serif;}
+.terms-btn{background:none;border:none;color:#007aff;font-size:15px;cursor:pointer;padding:0;font-family:-apple-system,'SF Pro Display',sans-serif;display:flex;align-items:center;gap:5px;}
+
+/* TERMS */
+.terms-card{background:#fff;border-radius:16px;margin:0 16px;padding:16px;}
+.terms-title{font-size:11px;color:#8e8e93;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;}
+.terms-card ul{list-style:disc;padding-left:20px;}
+.terms-card li{font-size:15.5px;color:#1a1a2e;line-height:1.6;margin-bottom:12px;}
+.terms-bottom{padding:14px 16px 0;margin:0 16px;}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="home-header">
+    <div class="home-logo">
+      <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
+        <rect x="0" y="6" width="40" height="20" rx="4" fill="white" opacity="0.9"/>
+        <rect x="8" y="11" width="24" height="10" rx="2" fill="#1a73e8"/>
+        <circle cx="6" cy="28" r="3" fill="white" opacity="0.8"/>
+        <circle cx="34" cy="28" r="3" fill="white" opacity="0.8"/>
+      </svg>
+    </div>
+    <div class="home-title">GRT Transit</div>
+    <div class="home-sub">Grand River Transit</div>
+    <button class="activate-btn" id="activateBtn" onclick="activateTicket()">Activate</button>
+  </div>
+  <div class="ticket-preview-wrap" id="previewWrap" style="display:none;">
+    <div class="preview-label">Active Ticket</div>
+    <div class="ticket-preview-card" onclick="showTicket()">
+      <div class="preview-icon">
+        <svg width="26" height="20" viewBox="0 0 26 20" fill="none">
+          <rect x="0" y="2" width="26" height="16" rx="3" fill="white" opacity="0.9"/>
+          <rect x="5" y="6" width="16" height="8" rx="2" fill="#1a73e8"/>
+        </svg>
+      </div>
+      <div class="preview-text">
+        <div class="preview-name">Single Ride Ticket</div>
+        <div class="preview-expiry" id="previewExpiry">Valid until —</div>
+      </div>
+      <div class="preview-chevron">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET SCREEN -->
+<div id="ticketScreen" class="screen">
+  <div class="ticket-top-bar">
+    <button class="close-pill" onclick="showHome()">Close</button>
+  </div>
+  <div class="ticket-body">
+    <div class="ticket-header-bar"><span>Single Ride Ticket</span></div>
+    <div class="ticket-card">
+
+      <!-- AZTEC BARCODE -->
+      <div class="aztec-wrap">
+        <canvas id="aztecCanvas"></canvas>
+      </div>
+
+      <!-- COLOR BAR -->
+      <div class="color-bar">
+        <div class="cb-amber"></div>
+        <div class="cb-green"></div>
+        <div class="cb-red"></div>
+        <span class="cb-time" id="liveTime">12:00:00 AM   01/01/26</span>
+      </div>
+
+      <!-- GRT BRAND PANEL -->
+      <div class="grt-brand-panel">
+        <div class="grt-ring r1"></div>
+        <div class="grt-ring r2"></div>
+        <div class="grt-ring r3"></div>
+        <div class="grt-ring r4"></div>
+        <div class="grt-ring r5"></div>
+        <div class="grt-pill">
+          <div class="grt-pill-icon">
+            <svg width="38" height="30" viewBox="0 0 38 30" fill="none">
+              <rect x="1" y="5" width="36" height="20" rx="3" fill="none" stroke="white" stroke-width="2"/>
+              <line x1="10" y1="5" x2="10" y2="25" stroke="white" stroke-width="1.5" stroke-dasharray="2.5 2.5"/>
+              <line x1="28" y1="5" x2="28" y2="25" stroke="white" stroke-width="1.5" stroke-dasharray="2.5 2.5"/>
+              <path d="M0 12 Q4 12 4 15 Q4 18 0 18" fill="#3db54a"/>
+              <path d="M38 12 Q34 12 34 15 Q34 18 38 18" fill="#3db54a"/>
+              <rect x="13" y="11" width="12" height="2.5" rx="1.2" fill="white" opacity="0.9"/>
+              <rect x="13" y="16" width="8" height="2" rx="1" fill="white" opacity="0.65"/>
+              <circle cx="5.5" cy="13" r="1.5" fill="white" opacity="0.6"/>
+              <circle cx="5.5" cy="17" r="1.5" fill="white" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="grt-pill-text">Single-ride<br>ticket</div>
+        </div>
+        <div class="grt-wm">GRT</div>
+      </div>
+
+      <div class="grt-act-bar"><span id="activatedLabel">Activated —</span></div>
+
+      <div class="ticket-card-bottom">
+        <button class="details-btn" onclick="showDetails()">
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+            <rect width="16" height="2" rx="1" fill="#007aff"/>
+            <rect y="5" width="16" height="2" rx="1" fill="#007aff"/>
+            <rect y="10" width="16" height="2" rx="1" fill="#007aff"/>
+          </svg>
+          Details
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILS -->
+<div id="detailsScreen" class="screen">
+  <div class="details-top-bar">
+    <button class="close-pill" onclick="showHome()">Close</button>
+  </div>
+  <div class="details-card">
+    <div class="detail-row">
+      <div class="dl">Valid Until</div>
+      <div class="dv" id="dValidUntil">—</div>
+      <div class="valid-badge" id="dTimeLeft">— Left</div>
+    </div>
+    <div class="detail-row"><div class="dl">Activated</div><div class="dv" id="dActivated">—</div></div>
+    <div class="detail-row"><div class="dl">Activation Ends</div><div class="dv" id="dActivationEnds">—</div></div>
+    <div class="detail-row">
+      <div class="dl">Trip</div>
+      <div class="trip-row"><span class="dv">Single Ride Ticket</span><span class="dv" style="font-weight:600;">$3.00</span></div>
+    </div>
+    <div class="detail-row"><div class="dl">Purchase</div><div class="dv" id="dPurchase">—</div></div>
+    <div class="detail-row"><div class="dl">Ticket ID</div><div class="dv" id="dTicketId">—</div></div>
+  </div>
+  <div class="details-bottom">
+    <button class="back-btn" onclick="showTicket()">‹ Back</button>
+    <button class="terms-btn" onclick="showTerms()">
+      <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
+        <rect width="14" height="2" rx="1" fill="#007aff"/>
+        <rect y="4.5" width="14" height="2" rx="1" fill="#007aff"/>
+        <rect y="9" width="14" height="2" rx="1" fill="#007aff"/>
+      </svg>Terms
+    </button>
+  </div>
+</div>
+
+<!-- TERMS -->
+<div id="termsScreen" class="screen">
+  <div class="details-top-bar">
+    <button class="close-pill" onclick="showHome()">Close</button>
+  </div>
+  <div class="terms-card">
+    <div class="terms-title">Terms</div>
+    <ul>
+      <li>Is refundable within five minutes of purchase.</li>
+      <li>Expires one year after purchase, even if not activated/used.</li>
+      <li>Is subject to applicable regulations and terms of use. Visit grt.ca for details.</li>
+    </ul>
+  </div>
+  <div class="terms-bottom">
+    <button class="back-btn" onclick="showDetails()">‹ Back</button>
+  </div>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────
+   AZTEC BARCODE RENDERER
+   Draws a dense Aztec-style 2D barcode that
+   visually matches the GRT ticket in the image:
+   - Dense black/white pixel grid edge-to-edge
+   - Bullseye (concentric squares) finder in center
+   - No quiet zone / no white border padding
+   - Seeded PRNG so same token = same pattern
+   ─────────────────────────────────────────────── */
+
+function seededRand(seed) {
+  var s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function strToSeed(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
+function drawAztec(canvasId, token, sizePx) {
+  var canvas = document.getElementById(canvasId);
+  var GRID = 41; /* odd number, Aztec uses odd grid */
+  var cell = Math.floor(sizePx / GRID);
+  var actual = cell * GRID;
+  canvas.width = actual;
+  canvas.height = actual;
+  canvas.style.width = actual + 'px';
+  canvas.style.height = actual + 'px';
+
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, actual, actual);
+
+  /* seeded random data layer */
+  var rng = seededRand(strToSeed(token));
+  var grid = [];
+  for (var r = 0; r < GRID; r++) {
+    grid[r] = [];
+    for (var c = 0; c < GRID; c++) {
+      grid[r][c] = rng() > 0.5 ? 1 : 0;
+    }
+  }
+
+  /* ── Aztec bullseye finder pattern (center) ──
+     Nested concentric square rings at center.
+     Aztec spec: center at (floor(GRID/2), floor(GRID/2))
+     Rings alternate black/white from inside out.     */
+  var cx = Math.floor(GRID / 2); /* = 20 */
+  var cy = Math.floor(GRID / 2);
+
+  /* clear center area first (11x11 for the finder + orientation) */
+  for (var r = cy-6; r <= cy+6; r++) {
+    for (var c = cx-6; c <= cx+6; c++) {
+      if (r >= 0 && r < GRID && c >= 0 && c < GRID) grid[r][c] = 0;
+    }
+  }
+
+  /* draw bullseye rings — ring 0 innermost (black) */
+  function setRing(center, radius, val) {
+    var top    = center - radius;
+    var bottom = center + radius;
+    for (var i = top; i <= bottom; i++) {
+      for (var j = top; j <= bottom; j++) {
+        if (i < 0 || i >= GRID || j < 0 || j >= GRID) continue;
+        /* only the border of this ring */
+        if (i === top || i === bottom || j === top || j === bottom) {
+          grid[i][j] = val;
+        }
+      }
+    }
+  }
+
+  setRing(cx, 0, 1); /* single center pixel black */
+  setRing(cx, 1, 1); /* ring 1 black */
+  setRing(cx, 2, 0); /* ring 2 white */
+  setRing(cx, 3, 1); /* ring 3 black */
+  setRing(cx, 4, 0); /* ring 4 white */
+  setRing(cx, 5, 1); /* ring 5 black — outermost finder ring */
+
+  /* orientation marks — small black squares just outside the finder */
+  /* top-left, top-right, bottom-left corners of finder area */
+  grid[cy-6][cx-6] = 1;
+  grid[cy-6][cx-5] = 1;
+  grid[cy-5][cx-6] = 1;
+  grid[cy-6][cx+5] = 1;
+  grid[cy-6][cx+6] = 1;
+  grid[cy-5][cx+6] = 1;
+  grid[cy+5][cx-6] = 1;
+  grid[cy+6][cx-6] = 1;
+  grid[cy+6][cx-5] = 1;
+
+  /* mode/data rings just outside finder (dense data region feel) */
+  for (var r2 = cy-7; r2 <= cy+7; r2++) {
+    for (var c2 = cx-7; c2 <= cx+7; c2++) {
+      if (r2 < 0 || r2 >= GRID || c2 < 0 || c2 >= GRID) continue;
+      if (r2 === cy-7 || r2 === cy+7 || c2 === cx-7 || c2 === cx+7) {
+        /* alternating mode ring */
+        grid[r2][c2] = ((r2 + c2) % 2 === 0) ? 1 : 0;
+      }
+    }
+  }
+
+  /* render pixels */
+  ctx.fillStyle = '#000000';
+  for (var r3 = 0; r3 < GRID; r3++) {
+    for (var c3 = 0; c3 < GRID; c3++) {
+      if (grid[r3][c3] === 1) {
+        ctx.fillRect(c3 * cell, r3 * cell, cell, cell);
+      }
+    }
+  }
+}
+
+/* ─────────────────────────────────
+   TICKET STATE & LOGIC
+───────────────────────────────── */
+var ticketData = null, clockRAF = null, expiryInterval = null, qrInterval = null;
+var qrIndex = 0, qrTokens = [];
+var txPos = 6, txDir = 1, txSpeed = 1.0, txMin = 6, txMax = 100, lastSec = -1;
+var AZTEC_SIZE = 0; /* computed at runtime */
+
+function getAztecSize() {
+  /* match the card inner width */
+  var card = document.querySelector('.ticket-card');
+  if (!card) return 260;
+  var w = card.offsetWidth - 36; /* 18px padding each side */
+  return Math.min(w, 300);
+}
+
+function pad(n){return String(n).padStart(2,'0');}
+function fmt12(d){var h=d.getHours(),m=d.getMinutes(),a=h>=12?'PM':'AM';h=h%12||12;return pad(h)+':'+pad(m)+' '+a;}
+function fmtFull(d){var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return M[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()+' at '+fmt12(d);}
+function fmtBar(d){var h=d.getHours(),m=d.getMinutes(),s=d.getSeconds(),a=h>=12?'PM':'AM';h=h%12||12;var dd=pad(d.getDate()),mm=pad(d.getMonth()+1),yy=String(d.getFullYear()).slice(2);return pad(h)+':'+pad(m)+':'+pad(s)+' '+a+'   '+dd+'/'+mm+'/'+yy;}
+function randId(){var c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',r='';for(var i=0;i<11;i++)r+=c[Math.floor(Math.random()*c.length)];return r;}
+
+function genTokens(base) {
+  var a = [];
+  for (var i = 0; i < 12; i++) {
+    a.push('GRT:' + base + ':' + i + ':' + Math.random().toString(36).substr(2,8).toUpperCase() + ':SINGLERIDE:V2');
+  }
+  return a;
+}
+
+function rotateAztec() {
+  if (!ticketData || !qrTokens.length) return;
+
+  qrIndex = (qrIndex + 1) % qrTokens.length;
+
+  // Direct redraw — NO clearing, NO opacity change
+  drawAztec('aztecCanvas', qrTokens[qrIndex], AZTEC_SIZE);
+}
+
+function startClock() {
+  if (clockRAF) cancelAnimationFrame(clockRAF);
+  var el = document.getElementById('liveTime');
+  var bar = document.querySelector('.color-bar');
+  txPos = txMin; txDir = 1;
+  function tick() {
+    var now = new Date(), sec = now.getSeconds();
+    if (sec !== lastSec) {
+      lastSec = sec;
+      el.textContent = fmtBar(now);
+      txMax = Math.max(txMin + 1, bar.offsetWidth - el.offsetWidth - 6);
+    }
+    txPos += txDir * txSpeed;
+    if (txPos >= txMax) { txPos = txMax; txDir = -1; }
+    if (txPos <= txMin) { txPos = txMin; txDir = 1; }
+    el.style.left = txPos + 'px';
+    clockRAF = requestAnimationFrame(tick);
+  }
+  clockRAF = requestAnimationFrame(tick);
+}
+
+function startExpiry() {
+  if (expiryInterval) clearInterval(expiryInterval);
+  expiryInterval = setInterval(function() {
+    if (!ticketData) return;
+    var diff = ticketData.validUntil - new Date();
+    if (diff <= 0) {
+      clearInterval(expiryInterval); cancelAnimationFrame(clockRAF); clearInterval(qrInterval);
+      ticketData = null;
+      document.getElementById('previewWrap').style.display = 'none';
+      document.getElementById('activateBtn').style.display = 'inline-block';
+      showHome(); return;
+    }
+    var hh = Math.floor(diff / 3600000), mm = Math.floor((diff % 3600000) / 60000);
+    document.getElementById('dTimeLeft').textContent = hh > 0 ? hh + ' Hour' + (hh > 1 ? 's' : '') + ' ' + mm + ' Minutes Left' : mm + ' Minutes Left';
+    document.getElementById('previewExpiry').textContent = 'Valid until ' + fmt12(ticketData.validUntil);
+  }, 1000);
+}
+
+function activateTicket() {
+  var now = new Date();
+  var validUntil = new Date(now.getTime() + 7200000);
+  var activationEnds = new Date(now.getTime() + 300000);
+  var purchase = new Date(now.getTime() - 900000);
+  var tid = randId();
+  ticketData = { activatedAt: now, validUntil: validUntil, activationEnds: activationEnds, purchase: purchase, ticketId: tid };
+  qrTokens = [];
+  for (let i = 0; i < 20; i++) {
+    qrTokens.push('GRT:' + tid + ':SEQ:' + i);
+  }
+
+  document.getElementById('activatedLabel').textContent = 'Activated ' + fmt12(now);
+  document.getElementById('dActivated').textContent = fmtFull(now);
+  document.getElementById('dValidUntil').textContent = fmtFull(validUntil);
+  document.getElementById('dActivationEnds').textContent = fmtFull(activationEnds);
+  document.getElementById('dPurchase').textContent = fmtFull(purchase);
+  document.getElementById('dTicketId').textContent = tid;
+  document.getElementById('previewExpiry').textContent = 'Valid until ' + fmt12(validUntil);
+  document.getElementById('previewWrap').style.display = 'block';
+  document.getElementById('activateBtn').style.display = 'none';
+
+  showScreen('ticketScreen');
+
+  /* draw after screen is visible so offsetWidth is correct */
+  requestAnimationFrame(function() {
+    AZTEC_SIZE = getAztecSize();
+    drawAztec('aztecCanvas', qrTokens[0], AZTEC_SIZE);
+    if (qrInterval) clearInterval(qrInterval);
+    qrInterval = setInterval(rotateAztec, 1000);
+    startClock();
+    startExpiry();
+  });
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+function showHome() { showScreen('home'); }
+function showTicket() { showScreen('ticketScreen'); }
+function showDetails() { showScreen('detailsScreen'); }
+function showTerms() { showScreen('termsScreen'); }
+</script>
+</body>
+</html>
